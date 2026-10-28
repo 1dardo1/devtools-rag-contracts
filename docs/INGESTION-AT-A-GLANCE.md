@@ -11,7 +11,8 @@ gaps in the design are in [`EVENT-INVENTORY.md`](EVENT-INVENTORY.md), and are no
 repeated here.
 
 **Snapshot** of [`devtools-rag-ingestion`](https://github.com/1dardo1/devtools-rag-ingestion)
-`main` at `501f557`, 2026-10-28. Paths are relative to that repository's root;
+`main` at `501f557`, 2026-10-28, with section 3.2 brought up to `035ac0a`
+(ingestion #47, which changed the refusals). Paths are relative to that repository's root;
 ADR numbers are its own unless stated. If its code changes, this file is wrong
 until corrected.
 
@@ -39,8 +40,8 @@ until corrected.
 
 Phase 4's criterion ("a row in Postgres and a message in Redis") is half met:
 HTTP produces the `documents` row and its `outbox` row in one transaction; Redis
-is 4.3 (`docs/BUILD-PLAN.md`). **Tests:** 302 collected, 249 unit and 53
-integration (`pytest --collect-only`, run for this snapshot).
+is 4.3 (`docs/BUILD-PLAN.md`). **Tests:** 303 collected, 250 unit and 53
+integration (`pytest --collect-only` at `035ac0a`).
 
 ### 1.2 The gate
 
@@ -236,13 +237,14 @@ Source: `api/routes.py`, `api/schemas.py`.
 
 ### 3.2 Refusals
 
-Domain refusals and the transport cap answer `{"code": str, "detail": str}`
-(`ErrorResponse`). `code` is a literal string, never derived from a class name,
+**Every refusal answers `{"code": str, "detail": str}`** (`ErrorResponse`),
+and every `4xx` in the OpenAPI document declares that shape. `code` is a literal string, never derived from a class name,
 because renaming it on the wire is a breaking change (`api/error_handling.py`).
 
 | Status | `code` | Raised by | Endpoint |
 |---|---|---|---|
 | `404` | `collection_not_found` | `CollectionNotFoundError` | `POST …/documents` |
+| `404` | `document_not_found` | `DocumentNotFoundError` (HTTP layer; the use case returns `None`) | `GET /documents/{id}` |
 | `409` | `duplicate_collection_name` | `DuplicateCollectionNameError` | `POST /collections` |
 | `409` | `duplicate_document` | `DuplicateDocumentError` | `POST …/documents` |
 | `409` | `collection_full` | `CollectionFullError` | `POST …/documents` |
@@ -251,17 +253,19 @@ because renaming it on the wire is a breaking change (`api/error_handling.py`).
 | `422` | `missing_metadata_field` | `MissingMetadataFieldError` | `POST …/documents` |
 | `422` | `invalid_source_url` | `InvalidSourceUrlError` | `POST …/documents` |
 | `422` | `missing_collection_name` | `MissingCollectionNameError` | `POST /collections` |
+| `422` | `invalid_request` | FastAPI's `RequestValidationError`: unknown or missing field, wrong type, unknown `doc_type`, bad base64, malformed path UUID | any |
 | `500` | `internal_error` | any `DomainError` not in the table | any |
 
-Sources: `api/error_handling.py`, `api/body_limit.py`. **Two refusals do not
-have that shape**, despite the README (both checked against `create_app()`):
+Sources: `api/error_handling.py`, `api/body_limit.py`. One handler answers
+domain errors, the unknown document and validation failures. For
+`invalid_request`, `detail` names each failing location and why
+(`body.metadata.doc_type: Input should be …`) and **never echoes the input**,
+which for a document is its content.
 
-- **`GET /documents/{id}` for an unknown document** raises FastAPI's
-  `HTTPException`, so the body is `{"detail": "There is no document <id>"}`,
-  with **no `code`**. OpenAPI still declares `ErrorResponse` for that `404`.
-- **FastAPI's own validation failures** (malformed JSON, missing field, unknown
-  field, unknown `doc_type`, bad base64, malformed path UUID) are `422` with
-  `{"detail": [ ... ]}`, a list. No handler overrides them.
+Until ingestion #47 (merged 2026-10-28) two refusals broke the shape: the unknown
+document answered FastAPI's `{"detail": "…"}` with no `code`, and validation
+failures answered `{"detail": [ … ]}`. A client written against an older
+snapshot may still expect those.
 
 ### 3.3 Two size caps, not one
 
@@ -434,11 +438,10 @@ From `OPEN-DECISIONS.md` unless noted.
 ## 7. Discrepancies between ingestion's documents and its code
 
 Found while writing this file, against commit `501f557`. None is fixed here.
+Item 1 is fixed in ingestion; ingestion #48 corrects items 2, 3 and 4.
 
-1. **`README.md` says "every refusal answers with the same shape,
-   `{"code", "detail"}`".** Two do not: the `404` for an unknown document and
-   FastAPI's validation `422`s (section 3.2). The OpenAPI document also declares
-   `ErrorResponse` for that `404`.
+1. ~~**`README.md` says "every refusal answers with the same shape".**~~ Two did
+   not; **fixed by ingestion #47**, merged (section 3.2).
 2. **`IngestDocument.execute`'s docstring says a too-large submission "is refused
    without touching the database at all".** The collection lookup runs first, so
    one query is made before the size check (`application/ingest_document.py`).
