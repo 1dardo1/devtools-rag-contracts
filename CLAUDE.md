@@ -100,13 +100,16 @@ a change to something already published.
   nothing here moves it. The retrieval repository is not created until that
   gate is passed.
 
-**Two pieces of documentation are still owed here**, as follow-up pull requests:
+**`docs/EVENT-INVENTORY.md` is where Phase 3 starts.** It describes
+`DocumentIngested` as ingestion writes it today, field by field with sources,
+lists the seven questions Phase 3 must answer, and names two gaps no repository
+owns yet: **the consumer has no way to fetch a document's content**, and
+**nothing reports indexing back**, so ingestion's status never leaves `pending`.
 
-1. An inventory of the event as ingestion writes it today — every field, its
-   invariants, its source, and the open questions Phase 3 must answer.
-2. The system-wide ADRs 0001 to 0005. **Ingestion's README links to "ADR 0005 in
-   the contracts repository" for the corpus decision, and that ADR does not exist
-   yet**, so the link is broken until the second one is merged.
+**One piece of documentation is still owed here:** the system-wide ADRs 0001
+to 0005. **Ingestion's README links to "ADR 0005 in the contracts repository"
+for the corpus decision, and that ADR does not exist yet**, so the link is broken
+until it is merged.
 
 **Keep this section current.** It is the first thing a new session reads, and a
 stale one sends the work in the wrong direction.
