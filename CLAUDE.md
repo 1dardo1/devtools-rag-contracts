@@ -133,9 +133,5 @@ The next unit is the toolchain scaffold, and it starts with a proposal;
 `docs/TOOLCHAIN-REFERENCE.md` is its input, and records that ingestion declares
 `pydantic>=2.13.5`, which any range declared here must allow.
 
-**Still out of sync between the two repositories:** `docs/ARCHITECTURE.md` §3
-says hosting is "Render or Fly.io", but ingestion ADR 0025 chose Render. The file
-is a copy, so correcting it is a pair of pull requests, one per repository.
-
 **Keep this section current.** It is the first thing a new session reads, and a
 stale one sends the work in the wrong direction.
