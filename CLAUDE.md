@@ -1,0 +1,112 @@
+# CLAUDE.md — devtools-rag-contracts
+
+You are working on the **contracts package** of the Devtools RAG system.
+
+## Read first
+
+1. `docs/COLLABORATION.md` — the working agreement. It overrides your defaults.
+   Propose before implementing. Never commit to `main`. Every change goes through
+   a pull request. Every proposal names a rejected alternative.
+2. `docs/ARCHITECTURE.md` — the full system: three repositories, why they are
+   split, and the build order. Phase 3 is this repository's.
+
+Both are copies of the files in `devtools-rag-ingestion/docs/` and are kept
+identical to them; each carries a header saying how to check. ADR numbers inside
+them that name no repository are the ingestion service's.
+
+## What this repository is
+
+The **single source of truth for what crosses the wire** between the ingestion
+service and the retrieval service. Once Phase 3 is built, that means:
+
+- Pydantic v2 schemas for every published event.
+- Semantic versioning, with a written backward-compatibility policy.
+- An installable package, `rag_contracts` (ingestion ADR 0003 set that prefix
+  for all three import roots: `rag_ingestion`, `rag_contracts`, `rag_retrieval`), consumed by both services as a
+  **pinned Git dependency**.
+- The **system-wide ADRs**, in `docs/adr/`. Ingestion's `CLAUDE.md` says so, and
+  its README already links here for the corpus decision.
+
+Principle 6 of `ARCHITECTURE.md` is the reason the repository exists: event
+schemas live **only** here. Copying a schema into a service defeats the split.
+
+## What this repository is NOT
+
+- **It is not a service.** No process, no endpoint, no Dockerfile, no database.
+- **It has no infrastructure clients.** No Redis client, no psycopg, no Qdrant
+  client, no FastAPI. A schema describes a message; sending it is a service's job.
+- **It does not hold the ingestion service's public HTTP API.** Requests and
+  responses of `POST /collections`, `POST /collections/{id}/documents` and
+  `GET /documents/{id}` belong to that service (its ADR 0015). Only what one
+  service publishes for the other to consume lives here.
+- **It does not invent shapes ahead of the domains that produce them.** Phase 3
+  comes after Phase 1 because the event is *derived* from the ingestion domain.
+  A field that no domain needs is a guess, and a guess on the wire is permanent.
+
+## What is already fixed, and where
+
+The ingestion service is ahead of this repository. It already writes the event to
+its outbox, so these points are **constraints Phase 3 inherits, not choices it
+gets to make**. Each one has a source; read it before arguing with it.
+
+- **One event exists: `DocumentIngested`**, with five fields — `document_id`,
+  `collection_id`, `content_hash`, `metadata`, `occurred_at`. Its shape was
+  agreed at ingestion `ROADMAP.md` 1.4. Source: `domain/events.py` there.
+- **It does not carry the content.** A consumer fetches the bytes by
+  `document_id`. Redis Streams is not a content store.
+- **Delivery is at-least-once**, through a transactional outbox and a relay.
+  The consumer must be idempotent (principle 7), and `document_id` plus
+  `content_hash` is the key that recognises a repeat.
+- **There is no global ordering guarantee.** Outbox identity values are
+  assigned at insert, not at commit, so two events can be published out of
+  order. Ingestion ADR 0012.
+- **`occurred_at` is the instant of ingestion, never of publication**, and is
+  always timezone-aware. Ingestion ADR 0009.
+- **`event_type` is a literal string, `"DocumentIngested"`**, not derived from a
+  class name, because a rename on the wire is a breaking change. Ingestion
+  ADR 0014.
+- **The payload today uses the domain's own field names**, with UUIDs as strings
+  and `occurred_at` as ISO 8601. Ingestion ADR 0014 says Phase 3 owns any
+  versioning, renaming or formal schema, and that `_as_payload` in the outbox
+  publisher is the one function on that side that changes.
+
+**The window for changing that shape for free closes when ingestion's relay
+(4.3) ships.** Until then nothing reads the outbox. From then on every change is
+a change to something already published.
+
+## Rules specific to this repository
+
+- **Changing an event schema always needs explicit approval**
+  (`COLLABORATION.md` §4), with at least one rejected alternative.
+- **Defining an event contract is an ADR trigger** (`COLLABORATION.md` §8).
+  Every new event, and every breaking change, gets one.
+- **Two repositories consume this one.** A change here is not finished until the
+  consumers have been considered; say in the proposal which of them it affects.
+- The toolchain follows the ingestion service's unless an ADR here says
+  otherwise: Python 3.14, `uv`, `hatchling`, `ruff`, `mypy --strict`, `pytest`.
+  That is a starting point to be decided in the scaffold's proposal, not a
+  decision already made.
+
+## Current phase
+
+**Phase 3 has not started.** This repository holds documentation only.
+
+- **The toolchain scaffold comes first.** Ingestion's `OPEN-DECISIONS.md` §6 and
+  `BUILD-PLAN.md` both record that it is a prerequisite of Phase 3 and that
+  nobody has scheduled it.
+- **Ingestion is blocked on this repository.** Its relay, 4.3, reads
+  `EXT3 --> U43` in its build plan: it waits on Phase 3 here.
+- **This repository is not the gate.** The gate is ingestion's public URL, and
+  nothing here moves it. The retrieval repository is not created until that
+  gate is passed.
+
+**Two pieces of documentation are still owed here**, as follow-up pull requests:
+
+1. An inventory of the event as ingestion writes it today — every field, its
+   invariants, its source, and the open questions Phase 3 must answer.
+2. The system-wide ADRs 0001 to 0005. **Ingestion's README links to "ADR 0005 in
+   the contracts repository" for the corpus decision, and that ADR does not exist
+   yet**, so the link is broken until the second one is merged.
+
+**Keep this section current.** It is the first thing a new session reads, and a
+stale one sends the work in the wrong direction.
