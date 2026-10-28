@@ -1,0 +1,122 @@
+[project]
+name = "devtools-rag-contracts"
+version = "0.1.0"
+description = "Versioned event schemas shared by the ingestion and retrieval services."
+readme = "README.md"
+# A library's floor is its consumers' constraint, not only its own: both
+# services run 3.14, and CI tests nothing older, so nothing older is claimed.
+# ADR 0006.
+requires-python = ">=3.14"
+license = { file = "LICENSE" }
+# None yet. Pydantic arrives with the first schema, which is what imports it:
+# declare what you import. ADR 0006.
+dependencies = []
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+# Not optional: hatchling looks for `src/<normalised distribution name>`, which
+# would be `src/devtools_rag_contracts`, and the import root is `rag_contracts`.
+[tool.hatch.build.targets.wheel]
+packages = ["src/rag_contracts"]
+
+[dependency-groups]
+# `coverage`, not `pytest-cov`: the plugin is a wrapper around this package and
+# `coverage run -m pytest` needs no wrapper. Ingestion ADR 0024.
+dev = [
+    "coverage>=7.16.1",
+    "mypy>=2.3.1",
+    "pytest>=8.4.2",
+    "ruff>=0.16.5",
+]
+
+# ADR 0006 records where this toolchain differs from the ingestion service's;
+# everything not named there follows ingestion's ADRs 0002 to 0006, 0008 and
+# 0024, which docs/TOOLCHAIN-REFERENCE.md summarises.
+
+[tool.ruff]
+target-version = "py314"
+
+# Ingestion ADR 0006: twenty-three rule families, chosen individually. The
+# same list, so one standard holds across both repositories. `TC` stays out for
+# a reason that matters more here: it moves imports under `TYPE_CHECKING`,
+# which breaks Pydantic's runtime introspection of annotations under PEP 649.
+[tool.ruff.lint]
+select = [
+    "A",    # flake8-builtins — shadowed builtins
+    "ARG",  # flake8-unused-arguments
+    "B",    # flake8-bugbear — real defects, not style
+    "C4",   # flake8-comprehensions
+    "D",    # pydocstyle — docstrings
+    "DTZ",  # flake8-datetimez — an event's timestamp is never naive
+    "E",    # pycodestyle errors
+    "EM",   # flake8-errmsg
+    "F",    # Pyflakes
+    "G",    # flake8-logging-format
+    "I",    # isort
+    "LOG",  # flake8-logging
+    "N",    # pep8-naming
+    "PT",   # flake8-pytest-style
+    "PTH",  # flake8-use-pathlib
+    "RUF",  # Ruff-specific
+    "S",    # flake8-bandit — security
+    "SIM",  # flake8-simplify
+    "T20",  # flake8-print — a stray print is a data escape
+    "TID",  # flake8-tidy-imports — bans relative imports
+    "TRY",  # tryceratops
+    "UP",   # pyupgrade
+    "W",    # pycodestyle warnings
+]
+
+# D105: a magic method's contract is defined by Python, not by this codebase.
+# Ingestion also ignores D107 and, in tests, ARG001/ARG002; those were argued
+# from its domain exceptions and its Protocol fakes, and this repository has
+# neither. They are added here when something needs them. ADR 0006.
+ignore = ["D105"]
+
+# Not optional: without it `D` selects two mutually exclusive pairs
+# (D203/D211 and D212/D213) and `ruff` silences one of each with a warning.
+[tool.ruff.lint.pydocstyle]
+convention = "pep257"
+
+[tool.ruff.lint.per-file-ignores]
+# S101: `assert` is pytest's mechanism.
+# D: a test's name is already its sentence.
+"tests/**" = ["S101", "D"]
+
+# Ingestion ADR 0005: strict, over src and tests, with the three gaps closed.
+# No `pydantic.mypy` plugin: ingestion rejected it on evidence, because with it
+# mypy stopped reporting a wrong argument type to a model constructor.
+[tool.mypy]
+python_version = "3.14"
+strict = true
+files = ["src", "tests"]
+mypy_path = "src"
+warn_unreachable = true
+enable_error_code = [
+    "ignore-without-code",
+    "possibly-undefined",
+    "redundant-expr",
+    "truthy-bool",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+# A typo in a marker name is an error rather than a silently unfiltered test.
+addopts = "--strict-markers"
+
+# Ingestion ADR 0024, with no integration half: the whole suite runs on any
+# machine, so a local report is the same number CI enforces.
+[tool.coverage.run]
+source = ["rag_contracts"]
+# Lines alone call an `if` covered when only one of its outcomes ever ran.
+branch = true
+
+[tool.coverage.report]
+# What the suite reached in CI on the day it was set, rounded down — the rule
+# ingestion ADR 0024 set. It only moves up: lowering it is a decision, made in a
+# pull request that says why.
+fail_under = 100
+show_missing = true
+skip_covered = true
