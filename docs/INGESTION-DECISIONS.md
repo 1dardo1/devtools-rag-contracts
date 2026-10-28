@@ -5,7 +5,9 @@
 has to go and read them there. **As of** ingestion `main` on 2026-10-28. Where a
 record states a fact that matters to the contract, the code under
 `src/rag_ingestion/` was checked the same day; disagreements are marked
-**Discrepancy** and collected at the end.
+**Discrepancy** and collected at the end. **All five were corrected in ingestion
+the same day** (ingestion #48), and 0015 changed with ingestion #47; both are
+noted where they apply.
 
 **Every ADR number here is ingestion's.** This repository's `docs/adr/` is
 numbered separately, so "0003" names a different decision in each. Full records:
@@ -130,8 +132,8 @@ own frontend, so that independence is a real requirement; and hatchling
 the fakes match; a bare `# type: ignore` is an error. Rejected: `--strict` alone
 with `ignore_missing_imports = true`; leaving `tests/` unchecked. Negatives:
 slower test writing; noisy error codes; overrides route around it unseen.
-**Discrepancy (minor):** `pyproject.toml` also sets `mypy_path = "src"`, absent
-from the ADR. **For contracts:** 0017 rejected **`plugins = ["pydantic.mypy"]`
+**Discrepancy (minor, corrected by ingestion #48):** `pyproject.toml` also sets
+`mypy_path = "src"`, which the ADR's block left out. **For contracts:** 0017 rejected **`plugins = ["pydantic.mypy"]`
 on evidence** — with it, mypy stopped reporting a wrong argument type to a model
 constructor (`CreateCollectionRequest(name=123)`).
 
@@ -274,8 +276,8 @@ Status is `text` with `CHECK (status IN ('pending', 'processing', 'indexed',
 
 **`doc_type` is deliberately not constrained** — each addition would be a
 migration and nothing branches on it, so an unknown value fails on read through
-`DocType`. **Discrepancy:** the ADR says it "has twenty-six members";
-`domain/doc_type.py` has **25** (inventory §1.3).
+`DocType`. **Discrepancy (corrected by ingestion #48):** the ADR said it "has
+twenty-six members"; `domain/doc_type.py` has **25** (inventory §1.3).
 
 Also: content as `bytea`; no `DEFAULT now()` anywhere (it would read a clock
 behind the domain's back, against 0009); **`timestamptz`, never `timestamp`**.
@@ -374,6 +376,13 @@ status response carries no content, so **nothing serves the
 fetch-by-`document_id` the event relies on** (inventory gap 4.1); and Pydantic
 writes `ingested_at` with `Z` where the outbox writes `+00:00` (question 5).
 
+**Changed by ingestion #47.** Every refusal now answers `{"code", "detail"}`,
+including an unknown document (`document_not_found`) and FastAPI's own validation
+failures (`invalid_request`, whose `detail` never echoes the input). The record's
+reason for rejecting RFC 9457 — that FastAPI's validation errors would leave two
+shapes — no longer holds as stated, and 0015 now says so; the choice stands
+because `{"code", "detail"}` is the shape already published.
+
 ## 0016. Structured logging on the standard library
 
 **Binds contracts:** directly — it holds the relay-silence decision due before
@@ -396,10 +405,10 @@ liveness measured through the database both processes share. Still open on
 2026-10-28, so 4.3 is blocked twice: on Phase 3 here, and on this. Other
 negatives: nothing redacts secrets; `default=repr` is lossy.
 
-**Discrepancy.** The ADR says "there is no request or correlation identifier".
-0017 added one — `api/request_id.py` mints a `uuid4`, returns it as
-`X-Request-Id`, and the formatter puts `request_id` in the envelope — but 0016
-was not corrected in place.
+**Discrepancy (corrected by ingestion #48).** The ADR said "there is no request
+or correlation identifier". 0017 added one — `api/request_id.py` mints a `uuid4`,
+returns it as `X-Request-Id`, and the formatter puts `request_id` in the envelope
+— and 0016 now says so.
 
 ## 0017. The composition root
 
@@ -447,10 +456,11 @@ Two stages on `python:3.14-slim`, `uv` (CI's pin) only in the build stage, `uv
 sync --locked --no-dev`, non-root, one uvicorn worker, **no migrations at
 start**; uvicorn's loggers are reclaimed so all output is JSON on stdout. Its
 `LICENSE` lesson — "every path `pyproject.toml` points at has to be in the
-image" — applies to any hatchling build. **Discrepancy (minor):**
-`uvicorn[standard]` was rejected partly to keep `python-dotenv` out as "a second
-configuration mechanism", but `pydantic-settings` 2.15.0 depends on it
-(`uv.lock`) and `Settings` sets `env_file=".env"`, so it is installed anyway.
+image" — applies to any hatchling build. **Discrepancy (minor, corrected by
+ingestion #48):** `uvicorn[standard]` was rejected partly to keep `python-dotenv`
+out as "a second configuration mechanism", but `pydantic-settings` 2.15.0 depends
+on it (`uv.lock`) and `Settings` sets `env_file=".env"`, so it is installed
+anyway. The ADR now withdraws that reason and keeps the decision.
 
 ## 0020. The image is built and started in CI
 
@@ -538,13 +548,16 @@ dashboard-only configuration; migrating on merge or via `preDeployCommand`.
 
 ## Discrepancies found
 
-| ADR | Claim | Code on 2026-10-28 |
-|---|---|---|
-| 0012 | `doc_type` "has twenty-six members" | `domain/doc_type.py` has 25 |
-| 0016 | "there is no request or correlation identifier" | Added by 0017 (`request_id` in the log envelope, `X-Request-Id`); 0016 not corrected |
-| 0005 | The configuration block shown | `pyproject.toml` also sets `mypy_path = "src"` |
-| 0019 | Rejecting `uvicorn[standard]` keeps `python-dotenv` out | `pydantic-settings` depends on it; `Settings` reads `env_file=".env"` |
-| 0012 | The outbox's constraints | Code also has `CHECK (event_type <> '')` — an omission, not a contradiction |
+All five were corrected in ingestion by #48, merged 2026-10-28. Kept here so a
+reader of an older copy of those ADRs knows what changed.
+
+| ADR | Claim | Code on 2026-10-28 | Status |
+|---|---|---|---|
+| 0012 | `doc_type` "has twenty-six members" | `domain/doc_type.py` has 25 | Corrected |
+| 0016 | "there is no request or correlation identifier" | Added by 0017 (`request_id` in the log envelope, `X-Request-Id`) | Corrected |
+| 0005 | The configuration block shown | `pyproject.toml` also sets `mypy_path = "src"` | Corrected |
+| 0019 | Rejecting `uvicorn[standard]` keeps `python-dotenv` out | `pydantic-settings` depends on it; `Settings` reads `env_file=".env"` | Corrected |
+| 0012 | The outbox's constraints | Code also has `CHECK (event_type <> '')` — an omission, not a contradiction | Corrected |
 
 Not a discrepancy, but open: 0013 left the translation of a lost-race
 `UniqueViolation` for later, and on 2026-10-28 nothing in `src/` translates it.

@@ -22,7 +22,7 @@ collection, a SHA-256 fingerprint of its content and its metadata
 it was ingested. **It does not carry the content itself.**
 
 Delivery is at-least-once and unordered, so a consumer must be idempotent;
-`document_id` plus `content_hash` is enough to recognise a repeat.
+`document_id` recognises a repeat, and `content_hash` alone does not.
 
 ## How it will be consumed
 
@@ -37,5 +37,13 @@ service is a second source of truth, and two sources of truth disagree.
 - [`docs/COLLABORATION.md`](docs/COLLABORATION.md) — how changes are proposed,
   reviewed and merged.
 - [`CLAUDE.md`](CLAUDE.md) — what is already fixed about the event, and why.
+- [`docs/EVENT-INVENTORY.md`](docs/EVENT-INVENTORY.md) — `DocumentIngested` field
+  by field, the questions Phase 3 must answer, and two gaps in the design.
+- [`docs/adr/`](docs/adr/) — the system-wide decisions: the service split, the
+  outbox, Redis Streams and the corpus.
+- [`docs/INGESTION-AT-A-GLANCE.md`](docs/INGESTION-AT-A-GLANCE.md),
+  [`docs/INGESTION-DECISIONS.md`](docs/INGESTION-DECISIONS.md) and
+  [`docs/TOOLCHAIN-REFERENCE.md`](docs/TOOLCHAIN-REFERENCE.md) — the producer,
+  its 25 ADRs and its toolchain, so the other repository need not be opened.
 - [`devtools-rag-ingestion`](https://github.com/1dardo1/devtools-rag-ingestion) —
   the service that publishes the event.

@@ -437,15 +437,16 @@ From `OPEN-DECISIONS.md` unless noted.
 
 ## 7. Discrepancies between ingestion's documents and its code
 
-Found while writing this file, against commit `501f557`. None is fixed here.
-Item 1 is fixed in ingestion; ingestion #48 corrects items 2, 3 and 4.
+Found while writing this file, against commit `501f557`. **All four are now
+corrected in ingestion**: item 1 by #47, items 2 to 4 by #48, both merged
+2026-10-28. Kept so a reader of an older snapshot knows what changed.
 
 1. ~~**`README.md` says "every refusal answers with the same shape".**~~ Two did
    not; **fixed by ingestion #47**, merged (section 3.2).
-2. **`IngestDocument.execute`'s docstring says a too-large submission "is refused
-   without touching the database at all".** The collection lookup runs first, so
-   one query is made before the size check (`application/ingest_document.py`).
-3. **`OPEN-DECISIONS.md`'s glossary says there are twenty-four ADRs**; there are
-   25. **`docs/BUILD-PLAN.md` says "eight ADRs are written"** in two places.
-4. **ADR 0012 says `doc_type` has twenty-six members**; the enum has 25. Already
-   recorded in the inventory.
+2. ~~**`IngestDocument.execute`'s docstring said a too-large submission "is
+   refused without touching the database at all".**~~ The collection lookup runs
+   first; **corrected by ingestion #48**.
+3. ~~**`OPEN-DECISIONS.md` said twenty-four ADRs and `docs/BUILD-PLAN.md`
+   "eight".**~~ There are 25; **corrected by ingestion #48**.
+4. ~~**ADR 0012 said `doc_type` has twenty-six members.**~~ The enum has 25;
+   **corrected by ingestion #48**.
