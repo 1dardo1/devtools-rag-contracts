@@ -88,9 +88,7 @@ are exactly what `_as_payload` produces, and what
 
 Lowercase strings, so a value is readable without a lookup table and survives a
 reordering of the enum. **Adding one is a domain change in ingestion**, by design:
-the set is closed so that an unrecognised kind cannot be stored. Ingestion ADR
-0012 calls the list "twenty-six members"; the enum has 25. The count in that ADR
-is wrong, not the list.
+the set is closed so that an unrecognised kind cannot be stored.
 
 ### 1.4 What travels outside the payload
 

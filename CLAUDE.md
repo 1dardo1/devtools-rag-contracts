@@ -14,6 +14,25 @@ Both are copies of the files in `devtools-rag-ingestion/docs/` and are kept
 identical to them; each carries a header saying how to check. ADR numbers inside
 them that name no repository are the ingestion service's.
 
+3. `docs/adr/` — this repository's ADRs: 0001 how records are kept across
+   repositories, 0002 two services and a contracts package, 0003 events through
+   a transactional outbox, 0004 Redis Streams, 0005 the corpus.
+4. `docs/EVENT-INVENTORY.md` — `DocumentIngested` as ingestion writes it today,
+   field by field. **Where Phase 3 starts.**
+
+**Everything relevant from the ingestion repository is here, so it should not
+need opening.** Reach for these when the question is about the producer:
+
+| File | Answers |
+|---|---|
+| `docs/INGESTION-AT-A-GLANCE.md` | What ingestion is now: phases, domain, ports, HTTP API and refusal codes, schema, configuration, deployment |
+| `docs/INGESTION-DECISIONS.md` | All 25 ingestion ADRs, each marked as binding the contract directly, a toolchain choice, or ingestion-only |
+| `docs/TOOLCHAIN-REFERENCE.md` | Ingestion's exact tool configuration and CI, and its known traps — the input to this repository's scaffold |
+
+All three are snapshots of ingestion `main` on 2026-10-28. When ingestion
+changes something they describe, the pull request that changes it is where to
+correct them.
+
 ## What this repository is
 
 The **single source of truth for what crosses the wire** between the ingestion
@@ -55,8 +74,10 @@ gets to make**. Each one has a source; read it before arguing with it.
 - **It does not carry the content.** A consumer fetches the bytes by
   `document_id`. Redis Streams is not a content store.
 - **Delivery is at-least-once**, through a transactional outbox and a relay.
-  The consumer must be idempotent (principle 7), and `document_id` plus
-  `content_hash` is the key that recognises a repeat.
+  The consumer must be idempotent (principle 7). `document_id` identifies a
+  repeat; **`content_hash` alone does not**, because the same content can be
+  stored again under a new `document_id` — in another collection, or after a
+  failed attempt (inventory §2).
 - **There is no global ordering guarantee.** Outbox identity values are
   assigned at insert, not at commit, so two events can be published out of
   order. Ingestion ADR 0012.
@@ -106,10 +127,15 @@ lists the seven questions Phase 3 must answer, and names two gaps no repository
 owns yet: **the consumer has no way to fetch a document's content**, and
 **nothing reports indexing back**, so ingestion's status never leaves `pending`.
 
-**One piece of documentation is still owed here:** the system-wide ADRs 0001
-to 0005. **Ingestion's README links to "ADR 0005 in the contracts repository"
-for the corpus decision, and that ADR does not exist yet**, so the link is broken
-until it is merged.
+**The documentation owed here is done.** The system-wide ADRs 0001 to 0005 are
+merged, so ingestion's link to "ADR 0005 in the contracts repository" resolves.
+The next unit is the toolchain scaffold, and it starts with a proposal;
+`docs/TOOLCHAIN-REFERENCE.md` is its input, and records that ingestion declares
+`pydantic>=2.13.5`, which any range declared here must allow.
+
+**Still out of sync between the two repositories:** `docs/ARCHITECTURE.md` §3
+says hosting is "Render or Fly.io", but ingestion ADR 0025 chose Render. The file
+is a copy, so correcting it is a pair of pull requests, one per repository.
 
 **Keep this section current.** It is the first thing a new session reads, and a
 stale one sends the work in the wrong direction.
