@@ -1,0 +1,103 @@
+# Every check a contributor runs locally, run again on a clean machine.
+#
+# The same single job as the ingestion service's `checks`, for the same reasons
+# (ingestion ADR 0008): one job rather than four, because each would pay the
+# same setup for seconds of work, and every action pinned to a commit rather
+# than a tag. One step more than ingestion: this repository is a library its
+# consumers build from source, so CI builds it the way they will. ADR 0006.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# The workflow only reads the repository. Nothing here needs a token that can
+# write, and a job that cannot write cannot be talked into writing.
+permissions:
+  contents: read
+
+# A second push to a pull request makes the first run's answer irrelevant.
+# Runs on `main` are left alone: each one is the record for a commit.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  checks:
+    name: Lint, types, tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        with:
+          # Pinned for the same reason the dependencies are locked: a uv
+          # release should not be able to change what this workflow does
+          # without a commit saying so. The same pin as the ingestion service.
+          version: "0.12.10"
+
+      # Also the lockfile check. `--locked` fails rather than re-resolving if
+      # `uv.lock` and `pyproject.toml` have drifted apart, which is the failure
+      # a reviewer cannot see by reading the diff. Python 3.14 is fetched here
+      # too, from `.python-version`.
+      - name: Install the locked dependency set
+        run: uv sync --locked --all-groups
+
+      # `!cancelled()` on every check after the first: a lint failure must not
+      # hide whether the types and tests were also broken. One run should
+      # report everything that is wrong, not the first thing.
+      - name: Lint (ruff check)
+        run: uv run ruff check
+
+      - name: Format (ruff format --check)
+        if: ${{ !cancelled() }}
+        run: uv run ruff format --check .
+
+      - name: Type check (mypy --strict)
+        if: ${{ !cancelled() }}
+        run: uv run mypy
+
+      # Under `coverage` rather than beside it: the suite runs once, and the
+      # number describes exactly the run whose result is shown above it.
+      - name: Tests (pytest, measured by coverage)
+        if: ${{ !cancelled() }}
+        run: uv run coverage run -m pytest
+
+      # Two reports, in that order. The first goes to the run's summary page
+      # and is told not to enforce, so the table appears even when the number
+      # is too low — which is when somebody most needs to see it. The second
+      # prints the same table to the log and fails the job below the floor in
+      # `pyproject.toml`.
+      - name: Coverage (report and enforce the floor)
+        if: ${{ !cancelled() }}
+        run: |
+          uv run coverage report --format=markdown --fail-under=0 >> "$GITHUB_STEP_SUMMARY"
+          uv run coverage report
+
+      # What a consumer does: build the sdist, build the wheel from it, install
+      # the wheel somewhere that has never seen `src/`, and import from it every
+      # module `src/` holds. The steps above all run against an editable
+      # install, which reads `src/` directly, so a module the build leaves out
+      # passes every one of them — hatchling's sdist honours `.gitignore`, for
+      # one, and the wheel is built from the sdist. `-I` keeps the working
+      # directory off `sys.path`, so each import can only come from the wheel.
+      # ADR 0006.
+      - name: Package (build the wheel and import every module from it)
+        if: ${{ !cancelled() }}
+        run: |
+          uv build
+          uv run --isolated --no-project --with ./dist/devtools_rag_contracts-*.whl \
+            python -I - <<'EOF'
+          import importlib
+          from pathlib import Path
+
+          for path in sorted(Path("src").rglob("*.py")):
+              name = ".".join(path.with_suffix("").parts[1:]).removesuffix(".__init__")
+              importlib.import_module(name)
+              print("imported from the wheel:", name)
+          EOF

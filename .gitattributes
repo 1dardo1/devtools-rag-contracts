@@ -1,0 +1,8 @@
+# The repository stores every text file with LF, and checks it out with LF on
+# every platform. Both consumers build this package inside Linux containers,
+# where a CRLF shell script fails with a misleading "not found" error.
+* text=auto eol=lf
+
+# Windows batch files are the one exception: cmd.exe requires CRLF.
+*.bat text eol=crlf
+*.cmd text eol=crlf

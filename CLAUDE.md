@@ -16,7 +16,8 @@ them that name no repository are the ingestion service's.
 
 3. `docs/adr/` — this repository's ADRs: 0001 how records are kept across
    repositories, 0002 two services and a contracts package, 0003 events through
-   a transactional outbox, 0004 Redis Streams, 0005 the corpus.
+   a transactional outbox, 0004 Redis Streams, 0005 the corpus, 0006 this
+   repository's toolchain and where it differs from ingestion's.
 4. `docs/EVENT-INVENTORY.md` — `DocumentIngested` as ingestion writes it today,
    field by field. **Where Phase 3 starts.**
 
@@ -103,18 +104,26 @@ a change to something already published.
   Every new event, and every breaking change, gets one.
 - **Two repositories consume this one.** A change here is not finished until the
   consumers have been considered; say in the proposal which of them it affects.
-- The toolchain follows the ingestion service's unless an ADR here says
-  otherwise: Python 3.14, `uv`, `hatchling`, `ruff`, `mypy --strict`, `pytest`.
-  That is a starting point to be decided in the scaffold's proposal, not a
-  decision already made.
+- **The toolchain is the ingestion service's, and ADR 0006 records every
+  difference.** Python 3.14, `uv`, `hatchling`, `ruff`, `mypy --strict`,
+  `pytest`, `coverage`, at the versions ingestion locks. Before opening a pull
+  request: `uv run ruff check`, `uv run ruff format --check .`, `uv run mypy`,
+  `uv run coverage run -m pytest`, `uv run coverage report`. There is no
+  integration half, so a local report is the number CI enforces.
+- **`ruff format --check .` reads Markdown too**: fenced Python in `docs/` is held
+  to the formatter like any source file (ADR 0006).
+- **CI builds the wheel and imports every module under `src/` from it**, in an
+  isolated environment, because every other check runs against an editable
+  install and cannot see a module the build leaves out. A file under `src/` that
+  is not importable fails that step.
 
 ## Current phase
 
-**Phase 3 has not started.** This repository holds documentation only.
+**Phase 3 is ready to start; no schema exists yet.**
 
-- **The toolchain scaffold comes first.** Ingestion's `OPEN-DECISIONS.md` §6 and
-  `BUILD-PLAN.md` both record that it is a prerequisite of Phase 3 and that
-  nobody has scheduled it.
+- **The toolchain scaffold is done** (ADR 0006): an empty, installable
+  `rag_contracts`, two tests, and CI. **Whether `Lint, types, tests` is a
+  required check is set in GitHub's ruleset for `main`, not here.**
 - **Ingestion is blocked on this repository.** Its relay, 4.3, reads
   `EXT3 --> U43` in its build plan: it waits on Phase 3 here.
 - **This repository is not the gate.** The gate is ingestion's public URL, and
@@ -127,11 +136,12 @@ lists the seven questions Phase 3 must answer, and names two gaps no repository
 owns yet: **the consumer has no way to fetch a document's content**, and
 **nothing reports indexing back**, so ingestion's status never leaves `pending`.
 
-**The documentation owed here is done.** The system-wide ADRs 0001 to 0005 are
-merged, so ingestion's link to "ADR 0005 in the contracts repository" resolves.
-The next unit is the toolchain scaffold, and it starts with a proposal;
-`docs/TOOLCHAIN-REFERENCE.md` is its input, and records that ingestion declares
-`pydantic>=2.13.5`, which any range declared here must allow.
+**Next: the first schema, `DocumentIngested`, and it starts with a proposal.**
+It brings the first runtime dependency: Pydantic, whose range must admit the
+2.13.5 ingestion locks. The coverage floor is 100 over a package with no
+statements yet; the first schema keeps it or lowers it in a pull request that
+says why. The versioning and compatibility policy, and the first tag, are Phase
+3's too.
 
 **Keep this section current.** It is the first thing a new session reads, and a
 stale one sends the work in the wrong direction.
