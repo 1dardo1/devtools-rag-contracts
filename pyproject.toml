@@ -8,9 +8,12 @@ readme = "README.md"
 # ADR 0006.
 requires-python = ">=3.14"
 license = { file = "LICENSE" }
-# None yet. Pydantic arrives with the first schema, which is what imports it:
-# declare what you import. ADR 0006.
-dependencies = []
+# Pydantic arrives with the first schema, which is what imports it: declare what
+# you import. The floor is what ingestion locks (2.13.5), so both services can
+# install this package against the same resolution. ADR 0006, ADR 0007.
+dependencies = [
+    "pydantic>=2.13.5,<3",
+]
 
 [build-system]
 requires = ["hatchling"]
