@@ -7,8 +7,9 @@ source of truth for the contract between them.
 
 **The package exists and holds one schema.** `rag_contracts.events` defines
 `DocumentIngested` ([ADR 0007](docs/adr/0007-the-documentingested-contract.md)).
-Still to come in Phase 3: the compatibility policy and the first release tag,
-which is what the services will pin.
+The compatibility policy is
+[ADR 0008](docs/adr/0008-versioning-and-compatibility.md). Still to come in
+Phase 3: the first release tag, `v0.2.0`, which is what the services will pin.
 
 The ingestion service is further ahead. It already writes `DocumentIngested` to a
 transactional outbox, under the field names its domain uses. Its relay — the

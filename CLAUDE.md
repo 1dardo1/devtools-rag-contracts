@@ -18,7 +18,7 @@ them that name no repository are the ingestion service's.
    repositories, 0002 two services and a contracts package, 0003 events through
    a transactional outbox, 0004 Redis Streams, 0005 the corpus, 0006 this
    repository's toolchain and where it differs from ingestion's, 0007 the
-   `DocumentIngested` contract.
+   `DocumentIngested` contract, 0008 versioning and compatibility.
 4. `docs/EVENT-INVENTORY.md` — `DocumentIngested` as ingestion writes it today,
    field by field. **Where Phase 3 starts.**
 
@@ -120,8 +120,8 @@ a change to something already published.
 
 ## Current phase
 
-**Phase 3 is under way: the first schema exists, and the policy and the first tag
-do not.**
+**Phase 3 is nearly done: the schema and the policy exist; the first release tag
+and ingestion's use of the package do not.**
 
 - **`DocumentIngested` is defined** in `rag_contracts.events` (ADR 0007), which
   answers the inventory's seven questions. Pydantic is the first dependency. The
@@ -141,9 +141,12 @@ lists the seven questions Phase 3 must answer, and names two gaps no repository
 owns yet: **the consumer has no way to fetch a document's content**, and
 **nothing reports indexing back**, so ingestion's status never leaves `pending`.
 
-**Next, in order:** (1) the compatibility policy as a document and the first
-release tag, `v0.2.0`, which ingestion will pin as a Git dependency; (2) ingestion
-consumes the package — `_as_payload` builds the model, and an integration test
+- **The policy is ADR 0008:** two numbers (package version and `schema_version`),
+  incompatible changes roll out consumers first, and services pin by tag.
+
+**Next, in order:** (1) the first release tag, `v0.2.0`, made on `main` after the
+pull request that sets the version merges, which ingestion will pin as a Git
+dependency; (2) ingestion consumes the package — `_as_payload` builds the model, and an integration test
 passes the real outbox payload through it, which is the only thing that keeps the
 two definitions of the metadata rules in agreement. That unblocks the relay. The
 two gaps above each need a proposal of their own, and the first must be settled
