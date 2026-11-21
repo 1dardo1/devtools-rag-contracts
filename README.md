@@ -5,9 +5,10 @@ source of truth for the contract between them.
 
 ## Status
 
-**There is no package yet.** Phase 3 of the build order, which creates it, has
-not started; its first step is a toolchain scaffold. What this repository holds
-today is the documentation that Phase 3 starts from.
+**The package exists and holds one schema.** `rag_contracts.events` defines
+`DocumentIngested` ([ADR 0007](docs/adr/0007-the-documentingested-contract.md)).
+Still to come in Phase 3: the compatibility policy and the first release tag,
+which is what the services will pin.
 
 The ingestion service is further ahead. It already writes `DocumentIngested` to a
 transactional outbox, under the field names its domain uses. Its relay — the

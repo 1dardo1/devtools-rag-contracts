@@ -17,7 +17,8 @@ them that name no repository are the ingestion service's.
 3. `docs/adr/` — this repository's ADRs: 0001 how records are kept across
    repositories, 0002 two services and a contracts package, 0003 events through
    a transactional outbox, 0004 Redis Streams, 0005 the corpus, 0006 this
-   repository's toolchain and where it differs from ingestion's.
+   repository's toolchain and where it differs from ingestion's, 0007 the
+   `DocumentIngested` contract.
 4. `docs/EVENT-INVENTORY.md` — `DocumentIngested` as ingestion writes it today,
    field by field. **Where Phase 3 starts.**
 
@@ -119,16 +120,20 @@ a change to something already published.
 
 ## Current phase
 
-**Phase 3 is ready to start; no schema exists yet.**
+**Phase 3 is under way: the first schema exists, and the policy and the first tag
+do not.**
 
-- **The toolchain scaffold is done** (ADR 0006): an empty, installable
-  `rag_contracts`, two tests, and CI. **Whether `Lint, types, tests` is a
+- **`DocumentIngested` is defined** in `rag_contracts.events` (ADR 0007), which
+  answers the inventory's seven questions. Pydantic is the first dependency. The
+  coverage floor stayed at 100.
+- **The toolchain scaffold is done** (ADR 0006): an installable `rag_contracts`
+  and CI. **Whether `Lint, types, tests` is a
   required check is set in GitHub's ruleset for `main`, not here.**
 - **Ingestion is blocked on this repository.** Its relay, 4.3, reads
   `EXT3 --> U43` in its build plan: it waits on Phase 3 here.
-- **This repository is not the gate.** The gate is ingestion's public URL, and
-  nothing here moves it. The retrieval repository is not created until that
-  gate is passed.
+- **This repository is not the gate**, and the gate is passed: ingestion has been
+  public since 2026-11-21. The retrieval repository exists, empty, and may now be
+  built.
 
 **`docs/EVENT-INVENTORY.md` is where Phase 3 starts.** It describes
 `DocumentIngested` as ingestion writes it today, field by field with sources,
@@ -136,12 +141,13 @@ lists the seven questions Phase 3 must answer, and names two gaps no repository
 owns yet: **the consumer has no way to fetch a document's content**, and
 **nothing reports indexing back**, so ingestion's status never leaves `pending`.
 
-**Next: the first schema, `DocumentIngested`, and it starts with a proposal.**
-It brings the first runtime dependency: Pydantic, whose range must admit the
-2.13.5 ingestion locks. The coverage floor is 100 over a package with no
-statements yet; the first schema keeps it or lowers it in a pull request that
-says why. The versioning and compatibility policy, and the first tag, are Phase
-3's too.
+**Next, in order:** (1) the compatibility policy as a document and the first
+release tag, `v0.2.0`, which ingestion will pin as a Git dependency; (2) ingestion
+consumes the package — `_as_payload` builds the model, and an integration test
+passes the real outbox payload through it, which is the only thing that keeps the
+two definitions of the metadata rules in agreement. That unblocks the relay. The
+two gaps above each need a proposal of their own, and the first must be settled
+before retrieval can consume anything.
 
 **Keep this section current.** It is the first thing a new session reads, and a
 stale one sends the work in the wrong direction.
