@@ -86,7 +86,8 @@ jobs:
       # passes every one of them — hatchling's sdist honours `.gitignore`, for
       # one, and the wheel is built from the sdist. `-I` keeps the working
       # directory off `sys.path`, so each import can only come from the wheel.
-      # ADR 0006.
+      # It also checks the wheel carries `py.typed`, which v0.2.0 did not and a
+      # consumer's `mypy --strict` found first. ADR 0006.
       - name: Package (build the wheel and import every module from it)
         if: ${{ !cancelled() }}
         run: |
@@ -100,4 +101,13 @@ jobs:
               name = ".".join(path.with_suffix("").parts[1:]).removesuffix(".__init__")
               importlib.import_module(name)
               print("imported from the wheel:", name)
+
+          # A typed library says so with this empty file. Without it a consumer
+          # running `mypy --strict` is refused the import outright.
+          from importlib.resources import files
+
+          assert files("rag_contracts").joinpath("py.typed").is_file(), (
+              "the wheel does not ship py.typed"
+          )
+          print("py.typed is in the wheel")
           EOF

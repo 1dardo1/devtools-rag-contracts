@@ -52,6 +52,12 @@ that is deployed.
   make it fail. `python -I` keeps the checkout off `sys.path`, so each import can
   only come from the wheel.
 
+  **It missed a third failure, and a consumer found it.** The first release,
+  0.2.0, shipped without `py.typed`, and ingestion's `mypy --strict` refused to
+  import it: *module is installed, but missing library stubs or py.typed marker*.
+  Every check here ran against code that type-checks, so none could see it. The
+  same step now asserts the file is in the wheel, and 0.3.0 ships it.
+
 ### Versions of the development tools
 
 - **Whatever `uv lock` resolves.** Rejected: on 2026-10-28 it resolved `ruff`

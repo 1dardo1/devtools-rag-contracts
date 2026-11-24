@@ -144,9 +144,15 @@ owns yet: **the consumer has no way to fetch a document's content**, and
 - **The policy is ADR 0008:** two numbers (package version and `schema_version`),
   incompatible changes roll out consumers first, and services pin by tag.
 
-**Next, in order:** (1) the first release tag, `v0.2.0`, made on `main` after the
-pull request that sets the version merges, which ingestion will pin as a Git
-dependency; (2) ingestion consumes the package — `_as_payload` builds the model, and an integration test
+- **`v0.2.0` is tagged but unusable by a typed consumer:** it shipped without
+  `py.typed`, and its `source_url` pattern was stricter than ingestion's own rule
+  (ADR 0007). `0.3.0` fixes both, as a minor release because loosening a schema
+  is a compatible change under ADR 0008. The wheel step in CI now checks for
+  `py.typed`.
+
+**Next, in order:** (1) the release tag `v0.3.0`, made on `main` after the pull
+request that sets the version merges, which ingestion will pin as a Git
+dependency (never use `v0.2.0` or `v0.2.1`, which does not exist); (2) ingestion consumes the package — `_as_payload` builds the model, and an integration test
 passes the real outbox payload through it, which is the only thing that keeps the
 two definitions of the metadata rules in agreement. That unblocks the relay. The
 two gaps above each need a proposal of their own, and the first must be settled

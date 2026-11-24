@@ -163,13 +163,31 @@ class TestTheMetadata:
             DocumentIngested.model_validate(_metadata(doc_type=bad))
 
     @pytest.mark.parametrize(
-        "bad", ["ftp://example.com/a", "example.com", "https://", "/relative"]
+        "unusual",
+        [
+            # Each of these is accepted by the ingestion domain, whose rule is
+            # `urlparse` with an http or https scheme and a host. The contract
+            # must never be stricter than its producer: a document the producer
+            # stored would be refused at the outbox, and refused again on every
+            # attempt. ADR 0007.
+            "HTTPS://Docs.Example.com/A",
+            "https://example.com/a b",
+            "http://exa\tmple.com/x",
+            "https://example.com/caf\u00e9",
+            "https://example.com/?q=1#frag",
+        ],
     )
-    def test_a_source_url_that_is_not_http_or_https_with_a_host_is_refused(
-        self, bad: str
+    def test_a_source_url_the_producer_accepted_is_never_refused(
+        self, unusual: str
     ) -> None:
+        event = DocumentIngested.model_validate(_metadata(source_url=unusual))
+
+        assert event.metadata.source_url == unusual
+
+    def test_a_blank_source_url_is_refused(self) -> None:
+        # Absent is `null`; a blank string is neither absent nor a URL.
         with pytest.raises(ValidationError):
-            DocumentIngested.model_validate(_metadata(source_url=bad))
+            DocumentIngested.model_validate(_metadata(source_url="   "))
 
     def test_a_source_url_is_not_rewritten(self) -> None:
         # A URL type would add the trailing slash; a consumer must see what was sent.

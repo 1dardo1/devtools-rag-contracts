@@ -1,7 +1,7 @@
 # 7. The `DocumentIngested` contract
 
 - **Status:** Accepted
-- **Last revised:** 2026-11-21
+- **Last revised:** 2026-11-24
 
 ## Context
 
@@ -103,10 +103,17 @@ back), which each need a proposal of their own.
   with a default, and adding a `doc_type` value. **Incompatible** ones, which bump
   it: removing or renaming a field, changing a type, or making an optional field
   required.
-- `source_library`, `library_version` and `source_url` are checked for the shape
-  the ingestion domain enforces. `source_url` stays a plain string, not `AnyUrl`,
-  because Pydantic's URL types normalise (a bare host gains a trailing slash) and
-  a value would change on its way through the contract.
+- **The contract is never stricter than its producer.** `source_library`,
+  `library_version` and `source_url` are non-blank text, stripped, and nothing
+  more. Whether a `source_url` is a usable URL is the ingestion domain's rule
+  (`urlparse`, an http or https scheme, a host), applied before anything is
+  stored. The first version of this schema carried a pattern of its own for
+  `source_url`, and ingestion's review showed it refusing three things the domain
+  accepts: an upper-case scheme (`HTTPS://…`), whitespace inside the URL, and a
+  tab. Each would have been a document stored and then refused at the outbox,
+  every time, as a 500. `source_url` is also not `AnyUrl`, because Pydantic's URL
+  types normalise (a bare host gains a trailing slash) and a value would change
+  on its way through the contract.
 - `EVENT_TYPE` (`"DocumentIngested"`) and `STREAM_NAME` (`"documents.events"`) are
   constants of this package, because a name on the wire is as much a part of the
   contract as a field.
@@ -119,6 +126,11 @@ back), which each need a proposal of their own.
 The first test is the inventory's example, character for character, and a second
 shows that a payload with no version, which is what the rows already in ingestion's
 outbox look like, validates as version 1.
+
+**Negative: a consumer can no longer assume `source_url` is a URL.** It receives
+whatever the producer's rule let through, including values a browser would not
+open. A consumer that needs a URL parses and handles failure itself, and that is
+the price of the rule above.
 
 **Negative: two definitions of the metadata rules now exist** — the ingestion
 domain's and this package's. They agree today. Nothing makes them keep agreeing
