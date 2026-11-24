@@ -71,8 +71,9 @@ reasons and are kept.
 
 ### Version and release
 
-- **A static `version = "0.1.0"`, no tag yet.** Chosen. The versioning and
-  compatibility policy is Phase 3's, and the first tag belongs to it.
+- **A static `version` in `pyproject.toml`, tagged from `main`.** Chosen. It
+  started at `0.1.0` with no tag; ADR 0008 is the policy and `0.2.0` the first
+  release.
 - **`hatch-vcs`, deriving the version from Git tags.** Rejected: a build
   dependency, and a version no diff shows.
 
