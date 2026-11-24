@@ -1,6 +1,6 @@
 [project]
 name = "devtools-rag-contracts"
-version = "0.2.0"
+version = "0.2.1"
 description = "Versioned event schemas shared by the ingestion and retrieval services."
 readme = "README.md"
 # A library's floor is its consumers' constraint, not only its own: both
