@@ -1,7 +1,7 @@
 # 8. Versioning and compatibility: two numbers, consumers first, pinned by tag
 
 - **Status:** Accepted
-- **Last revised:** 2026-11-21
+- **Last revised:** 2026-11-24
 
 ## Context
 
@@ -70,7 +70,8 @@ not a detail.
 
 - **A tag is made on `main`, after the pull request that sets the version has
   merged, and is never moved or deleted.** Chosen. A moved tag is two services
-  resolving one name to two different contents.
+  resolving one name to two different contents. It is made by the `Release`
+  workflow, which a person starts (ADR 0009), rather than typed.
 - **Tagging from a branch.** Rejected: it would publish something that review has
   not seen.
 
