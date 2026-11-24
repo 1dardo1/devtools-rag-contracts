@@ -28,11 +28,6 @@ from pydantic import (
 EVENT_TYPE: Final = "DocumentIngested"
 
 _NonBlank = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)]
-# A string and not `AnyUrl`: Pydantic's URL types normalise (a bare host gains a
-# trailing slash), so a value would change on its way through the contract.
-_HttpUrl = Annotated[
-    str, StringConstraints(strip_whitespace=True, pattern=r"^https?://[^\s/]+\S*$")
-]
 
 
 class DocumentMetadata(BaseModel):
@@ -48,7 +43,13 @@ class DocumentMetadata(BaseModel):
     doc_type: Annotated[str, StringConstraints(pattern=r"^[a-z_]+$")]
     # Free text, not a parsed version: "2.9" and "0.141.1" are both legitimate.
     library_version: _NonBlank | None = None
-    source_url: _HttpUrl | None = None
+    # Text, and no more than text. Whether it is a *usable* URL is the producer's
+    # judgement, made before the document is stored; a consumer only carries it.
+    # A pattern here would be stricter than the producer's own rule, and a
+    # document the producer accepted would then be refused at the outbox, over
+    # and over. Not `AnyUrl` either: Pydantic's URL types normalise (a bare host
+    # gains a trailing slash), so a value would change on its way through. ADR 0007.
+    source_url: _NonBlank | None = None
 
 
 class DocumentIngested(BaseModel):

@@ -56,7 +56,7 @@ that is deployed.
   0.2.0, shipped without `py.typed`, and ingestion's `mypy --strict` refused to
   import it: *module is installed, but missing library stubs or py.typed marker*.
   Every check here ran against code that type-checks, so none could see it. The
-  same step now asserts the file is in the wheel, and 0.2.1 ships it.
+  same step now asserts the file is in the wheel, and 0.3.0 ships it.
 
 ### Versions of the development tools
 
