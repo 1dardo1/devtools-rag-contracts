@@ -18,7 +18,8 @@ them that name no repository are the ingestion service's.
    repositories, 0002 two services and a contracts package, 0003 events through
    a transactional outbox, 0004 Redis Streams, 0005 the corpus, 0006 this
    repository's toolchain and where it differs from ingestion's, 0007 the
-   `DocumentIngested` contract, 0008 versioning and compatibility.
+   `DocumentIngested` contract, 0008 versioning and compatibility, 0009 releases are made by a
+   workflow a person starts.
 4. `docs/EVENT-INVENTORY.md` — `DocumentIngested` as ingestion writes it today,
    field by field. **Where Phase 3 starts.**
 
@@ -150,9 +151,9 @@ owns yet: **the consumer has no way to fetch a document's content**, and
   is a compatible change under ADR 0008. The wheel step in CI now checks for
   `py.typed`.
 
-**Next, in order:** (1) the release tag `v0.3.0`, made on `main` after the pull
-request that sets the version merges, which ingestion will pin as a Git
-dependency (never use `v0.2.0` or `v0.2.1`, which does not exist); (2) ingestion consumes the package — `_as_payload` builds the model, and an integration test
+**Next, in order:** (1) the release tag `v0.3.0`, made on `main` by the `Release`
+workflow (ADR 0009; run it once with `dry_run` ticked first), which ingestion
+will pin as a Git dependency (never use `v0.2.0` or `v0.2.1`, which does not exist); (2) ingestion consumes the package — `_as_payload` builds the model, and an integration test
 passes the real outbox payload through it, which is the only thing that keeps the
 two definitions of the metadata rules in agreement. That unblocks the relay. The
 two gaps above each need a proposal of their own, and the first must be settled

@@ -1,0 +1,129 @@
+# Tag and publish a release of this package, when a person says so. ADR 0009.
+#
+# Started by hand from the Actions tab and never by an event. ADR 0008 says a tag
+# is a promise made by a person and never moved, so the *moment* stays a human
+# decision; what this workflow takes over is the typing. The version is read from
+# `pyproject.toml` rather than entered, so the tag cannot disagree with the package
+# it names, and it refuses the cases in which a release would be wrong.
+#
+# It starts as a dry run. Every check runs and the workflow says what it would
+# have done, so the first real release is never also the first run.
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Check everything and stop before creating the tag"
+        type: boolean
+        default: true
+
+# Read the repository, read the check results, and write the one thing this
+# workflow exists to write: a release, which creates its tag. The other workflow
+# in this repository cannot write at all; this one is the exception, so it is the
+# only one a person has to start.
+permissions:
+  contents: write
+  checks: read
+
+# Never two at once: two releases of the same version would race for one tag.
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: Tag and publish the version in pyproject.toml
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      # `workflow_dispatch` offers every branch in a dropdown. A release from any
+      # other would publish something review has not seen, so refuse it loudly
+      # rather than skip, which would look like success.
+      - name: Refuse anything but main
+        if: ${{ github.ref != 'refs/heads/main' }}
+        run: |
+          echo "releases are made from main only, not from ${GITHUB_REF}" >&2
+          exit 1
+
+      # Pinned to the same commit `ci.yml` pins. No credentials left in `.git`:
+      # nothing here pushes. The release is created through the API instead.
+      - name: Check out the repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Read the version
+        id: version
+        run: |
+          set -euo pipefail
+          version="$(python3 -c "import tomllib; print(tomllib.load(open('pyproject.toml', 'rb'))['project']['version'])")"
+          if ! [[ "${version}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "version '${version}' is not MAJOR.MINOR.PATCH" >&2
+            exit 1
+          fi
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+          echo "tag=v${version}" >> "$GITHUB_OUTPUT"
+          echo "pyproject.toml says ${version}; the commit is ${GITHUB_SHA}"
+
+      # A tag that already exists is never moved or recreated (ADR 0008). Exit
+      # status 2 from `ls-remote --exit-code` means "no such ref"; any other
+      # failure is not an answer, and a release must not guess. `gh release
+      # create` would otherwise quietly reuse an existing tag that points
+      # somewhere else, which is the one outcome this check exists to prevent.
+      - name: Refuse a tag that already exists
+        env:
+          TAG: ${{ steps.version.outputs.tag }}
+        run: |
+          set +e
+          git ls-remote --exit-code --tags origin "refs/tags/${TAG}" > /dev/null 2>&1
+          status=$?
+          set -e
+          case "${status}" in
+            0) echo "${TAG} already exists and tags are never moved; bump the version" >&2; exit 1 ;;
+            2) echo "${TAG} does not exist yet" ;;
+            *) echo "could not tell whether ${TAG} exists (git exited ${status})" >&2; exit 1 ;;
+          esac
+
+      # Never release a commit whose checks did not pass. The name is the job's
+      # `name:` in `ci.yml`, and the answer must be exactly one run that
+      # succeeded: none means CI has not finished, which is not a pass.
+      - name: Refuse a commit CI has not passed
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          conclusions="$(gh api "repos/${GITHUB_REPOSITORY}/commits/${GITHUB_SHA}/check-runs" \
+            --jq '[.check_runs[] | select(.name == "Lint, types, tests") | .conclusion] | join(",")')"
+          echo "'Lint, types, tests' on ${GITHUB_SHA}: ${conclusions:-<no run>}"
+          if [[ "${conclusions}" != "success" ]]; then
+            echo "refusing to release a commit whose CI has not passed" >&2
+            exit 1
+          fi
+
+      - name: Create the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.version.outputs.tag }}
+          VERSION: ${{ steps.version.outputs.version }}
+          DRY_RUN: ${{ inputs.dry_run }}
+        run: |
+          set -euo pipefail
+          if [[ "${DRY_RUN}" == "true" ]]; then
+            echo "DRY RUN: would create ${TAG} on ${GITHUB_SHA} and publish release ${VERSION}."
+            echo "Run the workflow again with 'dry_run' unticked to do it."
+            exit 0
+          fi
+          # `--target` is the exact commit this run checked, so the tag cannot
+          # land on a `main` that moved while the checks above were running.
+          gh release create "${TAG}" \
+            --target "${GITHUB_SHA}" \
+            --title "${VERSION}" \
+            --generate-notes
+          created="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/tags/${TAG}" --jq '.object.sha')"
+          echo "${TAG} -> ${created}"
+          if [[ "${created}" != "${GITHUB_SHA}" ]]; then
+            echo "the tag points at ${created}, not at ${GITHUB_SHA}" >&2
+            exit 1
+          fi
