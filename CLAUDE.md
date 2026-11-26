@@ -121,43 +121,44 @@ a change to something already published.
 
 ## Current phase
 
-**Phase 3 is nearly done: the schema and the policy exist; the first release tag
-and ingestion's use of the package do not.**
+**Phase 3 is done: `DocumentIngested` is defined, released as `v0.3.0`, and
+ingestion consumes it. Two gaps the inventory names remain open, and no
+repository owns either yet.**
 
 - **`DocumentIngested` is defined** in `rag_contracts.events` (ADR 0007), which
-  answers the inventory's seven questions. Pydantic is the first dependency. The
-  coverage floor stayed at 100.
+  answers the inventory's seven questions. Pydantic is the first dependency.
 - **The toolchain scaffold is done** (ADR 0006): an installable `rag_contracts`
-  and CI. **Whether `Lint, types, tests` is a
-  required check is set in GitHub's ruleset for `main`, not here.**
-- **Ingestion is blocked on this repository.** Its relay, 4.3, reads
-  `EXT3 --> U43` in its build plan: it waits on Phase 3 here.
+  and CI. **Whether `Lint, types, tests` is a required check is set in GitHub's
+  ruleset for `main`, not here.**
+- **The policy is ADR 0008:** two numbers (package version and `schema_version`),
+  incompatible changes roll out consumers first, and services pin by tag.
+  ADR 0009 governs releases: a person starts the `Release` workflow.
+- **Released: `v0.3.0`** (on `main`, on the remote). `v0.2.0` is tagged but
+  unusable by a typed consumer: it has no `py.typed`, and its `source_url`
+  pattern was stricter than ingestion's rule (ADR 0007). Never pin `v0.2.0`.
+  The wheel step in CI checks for `py.typed`.
+- **Ingestion consumes it.** It pins `v0.3.0` as a Git dependency, and its outbox
+  payload is built from `DocumentIngested` (its ADR 0026). Its relay (4.3) is
+  therefore no longer blocked on this repository.
 - **This repository is not the gate**, and the gate is passed: ingestion has been
   public since 2026-11-21. The retrieval repository exists, empty, and may now be
   built.
 
-**`docs/EVENT-INVENTORY.md` is where Phase 3 starts.** It describes
-`DocumentIngested` as ingestion writes it today, field by field with sources,
-lists the seven questions Phase 3 must answer, and names two gaps no repository
-owns yet: **the consumer has no way to fetch a document's content**, and
-**nothing reports indexing back**, so ingestion's status never leaves `pending`.
+**`docs/EVENT-INVENTORY.md` is where Phase 3 started.** It describes
+`DocumentIngested` as ingestion writes it, field by field with sources, and names
+two gaps no repository owns yet:
 
-- **The policy is ADR 0008:** two numbers (package version and `schema_version`),
-  incompatible changes roll out consumers first, and services pin by tag.
+1. **The consumer has no way to fetch a document's content.** Redis Streams is not
+   a content store, so this needs a proposal before retrieval can consume anything.
+2. **Nothing reports indexing back**, so ingestion's status never leaves `pending`.
 
-- **`v0.2.0` is tagged but unusable by a typed consumer:** it shipped without
-  `py.typed`, and its `source_url` pattern was stricter than ingestion's own rule
-  (ADR 0007). `0.3.0` fixes both, as a minor release because loosening a schema
-  is a compatible change under ADR 0008. The wheel step in CI now checks for
-  `py.typed`.
+Each needs its own proposal (`COLLABORATION.md` §4 and §8) before any code.
 
-**Next, in order:** (1) the release tag `v0.3.0`, made on `main` by the `Release`
-workflow (ADR 0009; run it once with `dry_run` ticked first), which ingestion
-will pin as a Git dependency (never use `v0.2.0` or `v0.2.1`, which does not exist); (2) ingestion consumes the package — `_as_payload` builds the model, and an integration test
-passes the real outbox payload through it, which is the only thing that keeps the
-two definitions of the metadata rules in agreement. That unblocks the relay. The
-two gaps above each need a proposal of their own, and the first must be settled
-before retrieval can consume anything.
+**Next:** (1) a proposal for the content-fetch gap, which must be settled before
+retrieval consumes events; (2) a proposal for the indexing report-back; (3) when
+either is approved and changes the schema, a new release under ADR 0008 and ADR
+0009, with ingestion moving to the new tag first only if the change is breaking
+for consumers.
 
 **Keep this section current.** It is the first thing a new session reads, and a
 stale one sends the work in the wrong direction.
