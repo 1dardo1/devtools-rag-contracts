@@ -118,6 +118,11 @@ a change to something already published.
   isolated environment, because every other check runs against an editable
   install and cannot see a module the build leaves out. A file under `src/` that
   is not importable fails that step.
+- **One skill, in `.claude/skills/`: `verification-before-completion`**, to use
+  without being asked before any claim that something is done, green, compatible
+  or released. It is adapted from the MIT-licensed `obra/superpowers` skill of the
+  same name and keeps its licence beside it. Where it and `docs/COLLABORATION.md`
+  disagree, the collaboration protocol wins.
 
 ## Current phase
 
